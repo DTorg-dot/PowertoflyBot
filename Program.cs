@@ -1,7 +1,6 @@
 ﻿using HtmlAgilityPack;
+using PowerToFlyBot.Selenium;
 using RestSharp;
-using SeleniumCore;
-using SeleniumCore.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
