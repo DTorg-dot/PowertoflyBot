@@ -119,8 +119,8 @@ namespace PowerToFlyBot
         private (string session, string crsf_token) LoginUsingSelenium(SeleniumWebDriver seleniumWebDriver)
         {
             seleniumWebDriver.GoToUrl("https://powertofly.com/accounts/login");
-            seleniumWebDriver.ChromeDriver.FindElementById("login-email").SendKeys("torgkrypto@gmail.com");
-            seleniumWebDriver.ChromeDriver.FindElementById("login-password").SendKeys("XIfSmn6dl4xF");
+            //seleniumWebDriver.ChromeDriver.FindElementById("login-email").SendKeys();
+           // seleniumWebDriver.ChromeDriver.FindElementById("login-password").SendKeys();
             seleniumWebDriver.ChromeDriver.FindElementById("login-button").Click();
 
             var cookies = seleniumWebDriver.ChromeDriver.Manage().Cookies.AllCookies.ToDictionary(cookie => cookie.Name, cookie => cookie.Value);
@@ -150,7 +150,7 @@ namespace PowerToFlyBot
             //var token = attributes.First(x => x.Name == "value").Value;
             //#endregion
             PowerToFlyAPI powerToFlyAPI = new PowerToFlyAPI();
-            //powerToFlyAPI.Login("torgkrypto@gmail.com", "XIfSmn6dl4xF");
+            //powerToFlyAPI.Login();
 
             //var job = powerToFlyAPI.GetJobByLink("https://powertofly.com/jobs/detail/331367");
 
@@ -163,8 +163,8 @@ namespace PowerToFlyBot
             });
 
             seleniumWebDriver.GoToUrl("https://powertofly.com/accounts/login");
-            seleniumWebDriver.ChromeDriver.FindElementById("login-email").SendKeys("torgkrypto@gmail.com");
-            seleniumWebDriver.ChromeDriver.FindElementById("login-password").SendKeys("XIfSmn6dl4xF");
+            //seleniumWebDriver.ChromeDriver.FindElementById("login-email").SendKeys();
+            //seleniumWebDriver.ChromeDriver.FindElementById("login-password").SendKeys();
             seleniumWebDriver.ChromeDriver.FindElementById("login-button").Click();
             seleniumWebDriver.ChromeDriver.Manage().Cookies.DeleteAllCookies();
             Thread.Sleep(5000);
@@ -215,8 +215,8 @@ namespace PowerToFlyBot
             request.AddParameter("login-csrf_token", token);
             request.AddParameter("login-next", "");
             request.AddParameter("login-role", "");
-            request.AddParameter("login-email", "torgkrypto@gmail.com");
-            request.AddParameter("login-password", "XIfSmn6dl4xF");
+            //request.AddParameter("login-email", );
+            //request.AddParameter("login-password",);
 
             SetHeaders(request, session);
 
@@ -269,7 +269,6 @@ namespace PowerToFlyBot
             //request.AddParameter("login-next", "");
             //request.AddParameter("login-role", "");
             //request.AddParameter("login-email", "torgkrypto@gmail.com");
-            //request.AddParameter("login-password", "XIfSmn6dl4xF");
             //request.AddHeader("header", "value");
             //response = client.Post(request);
             //content = response.Content; // Raw content as string
@@ -285,8 +284,6 @@ namespace PowerToFlyBot
             //    { "login-csrf_token", token },
             //    { "login-next", "" },
             //    { "login-role", "" },
-            //    { "login-email", "torgkrypto@gmail.com" },
-            //    { "login-password", "XIfSmn6dl4xF"}
             //};
 
             //var content = new FormUrlEncodedContent(values);
