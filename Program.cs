@@ -3,13 +3,9 @@ using PowerToFlyBot.Selenium;
 using RestSharp;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PowerToFlyBot
 {
@@ -37,8 +33,8 @@ namespace PowerToFlyBot
             SeleniumWebDriver seleniumWebDriver = new SeleniumWebDriver(new SeleniumSettings
             {
                 IsDisableExtensions = true,
-                IsHeadless = false,
-                ProfileDirectory = "./ChromeDriver/Profile 2",
+                IsHeadless = true,
+                ProfileDirectory = "Default",
                 UserDataDir = @"./ChromeDriver/"
             });
 

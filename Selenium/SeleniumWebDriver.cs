@@ -40,7 +40,7 @@ namespace PowerToFlyBot.Selenium
             ChromeWebDriverOptions.AddArguments(new List<string>()
             {
                 $"user-data-dir={seleniumSettings.UserDataDir}",
-                $"profile-directory={seleniumSettings.ProfileDirectory}",
+                $"profile-directory={seleniumSettings.ProfileDirectory}"
             });
 
             if (seleniumSettings.IsDisableExtensions)
@@ -48,6 +48,9 @@ namespace PowerToFlyBot.Selenium
 
             if (seleniumSettings.IsHeadless)
                 ChromeWebDriverOptions.AddArgument("headless");
+
+            ChromeWebDriverOptions.AddArgument("no-sandbox");
+            ChromeWebDriverOptions.AddArgument("disable-dev-shm-usage");
 
             var chromeDriverService = ChromeDriverService.CreateDefaultService(seleniumSettings.UserDataDir);
 
