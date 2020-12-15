@@ -81,6 +81,7 @@ namespace PowerToFlyBot
                                 if (!job.WithRedirect && job.WithUploadCV)
                                 {
                                     powerToFlyAPI.ApplyForJob(job.ShortLink, botSignal.CoverLetter);
+                                    adminPanelApi.SaveJob(new JobDto { Name = job.Name, CoverLetter = botSignal.CoverLetter, Link = job.FullLink, SignalId = botSignal.Id });
                                 }
                                 Thread.Sleep(1000);
                             }
