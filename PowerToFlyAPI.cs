@@ -40,7 +40,7 @@ namespace PowerToFlyBot
 
         private string csrfToken;
 
-        public bool IsAuth { get; private set; }
+        public bool IsAuth { get; set; }
 
         public PowerToFlyAPI()
         {
@@ -50,7 +50,16 @@ namespace PowerToFlyBot
 
         public void SetSession(string session)
         {
-            Cookies.Add("session", session);
+            string sessionTmp = null;
+            Cookies.TryGetValue("session", out sessionTmp);
+            if (sessionTmp != null)
+            {
+                Cookies["session"] = session;
+            }
+            else
+            {
+                Cookies.Add("session", session);
+            }
         }
 
         public void SetToken(string token)
@@ -113,6 +122,31 @@ namespace PowerToFlyBot
             IsAuth = true;
         }
 
+        public ICollection<Job> GetJobsByLink(string link, int page = 0)
+        {
+            if (!IsAuth)
+            {
+                throw new NotAuthExcpetion("Auth first");
+            }
+
+            var uri = link.Replace("https://powertofly.com", "");
+
+            if (page != default)
+            {
+                uri += $"&page={page}";
+            }
+
+            var request = new RestRequest(uri);
+            SetHeaders(request);
+            SetCookies(request);
+
+            var response = restClient.Get(request);
+            CheackResponse(response);
+
+            var jobs = ParseJobList(response.Content);
+            return jobs;
+        }
+
         public ICollection<Job> GetJobs(string searchBy = null, int page = 0)
         {
             if (!IsAuth)
@@ -124,6 +158,7 @@ namespace PowerToFlyBot
 
             if (searchBy != null)
             {
+                searchBy = searchBy.Replace(' ', '+').Trim();
                 uri += $"?keywords={searchBy}";
             }
             else
@@ -172,6 +207,9 @@ namespace PowerToFlyBot
             {
                 throw new NotAuthExcpetion("Auth first");
             }
+
+            Console.WriteLine($"{csrfToken}");
+            Console.WriteLine($"{shortLink}");
 
             string uri = shortLink.Replace("detail", "apply") + ".json?confirm_skills=True";
 
@@ -230,8 +268,8 @@ namespace PowerToFlyBot
 
             foreach (var item in document.DocumentNode.SelectNodes("//div[contains(@class, 'js-elem')]"))
             {
-                var link = item.SelectSingleNode("//a").GetAttributeValue("href", "");
-                var name = item.SelectSingleNode("//a/div[2]/div[1]").InnerText;
+                var link = item.SelectSingleNode("a").GetAttributeValue("href", "");
+                var name = item.SelectSingleNode("//a/div[2]/div[1]").InnerText.Replace("\n", "").Trim();
 
                 jobs.Add(new Job
                 {
@@ -249,9 +287,19 @@ namespace PowerToFlyBot
         {
             document.LoadHtml(html);
 
-            var name = document.DocumentNode.SelectSingleNode("//h1[contains(@class, 'job title')]").GetAttributeValue("title", "");
-
             var interestedButton = document.DocumentNode.SelectSingleNode("//button[contains(@class, 'stat-i-am-intersted-btn')]");
+
+            // Already intresting register. skip
+            if (interestedButton == null)
+            {
+                return null;
+            }
+
+            bool isAuth = interestedButton.Attributes.First(x => x.Name == "action").Value.Contains("/jobs/apply/") && !interestedButton.Attributes.First(x => x.Name == "action").Value.Contains("unauth");
+
+            Console.WriteLine($"Is Auth: {isAuth}");
+
+            var name = document.DocumentNode.SelectSingleNode("//h1[contains(@class, 'job title')]").GetAttributeValue("title", "");
 
             return new Job
             {
@@ -260,7 +308,7 @@ namespace PowerToFlyBot
                 ShortLink = shortLink,
                 FullLink = "https://powertofly.com" + shortLink,
                 WithRedirect = interestedButton.Attributes.Any(x => x.Name == "data-is-custom-link"),
-                WithUploadCV = !interestedButton.Attributes.Any(x => x.Name == "data-is-custom-link") && interestedButton.Attributes.First(x => x.Name == "data-api").Value.Contains("popup")
+                WithUploadCV = !interestedButton.Attributes.Any(x => x.Name == "data-is-custom-link") && interestedButton.Attributes.First(x => x.Name == "action").Value.Contains("/jobs/apply/")
             };
         }
     }

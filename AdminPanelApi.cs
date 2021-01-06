@@ -20,6 +20,8 @@ namespace PowerToFlyBot
         public string CoverLetter { get; set; }
 
         public bool IgnoreAlreadySended { get; set; }
+
+        public int MaxPageCount { get; set; }
     }
 
     public class JobDto
@@ -33,13 +35,20 @@ namespace PowerToFlyBot
         public int SignalId { get; set; }
     }
 
+    public enum BotSignalStatus
+    {
+        Waiting = 1,
+        InProgress = 2,
+        Finished = 3
+    }
+
     public class AdminPanelApi
     {
         private RestClient RestClient { get; set; }
 
-        public AdminPanelApi()
+        public AdminPanelApi(string url)
         {
-            RestClient = new RestClient("http://localhost:54379/api/Powertofly");
+            RestClient = new RestClient(url);
         }
 
         public BotSignalDto GetBotSignal()
@@ -54,9 +63,20 @@ namespace PowerToFlyBot
 
         public void ChangeStatus(string email, string status)
         {
-            var request = new RestRequest("/ChangeStatus");
+            var request = new RestRequest($"/ChangeStatus");
             request.AddParameter("email", email);
             request.AddParameter("status", status);
+
+            var response = RestClient.Get(request);
+        }
+
+        public void ChangeSignalStatus(int botSignalId, BotSignalStatus status)
+        {
+            var request = new RestRequest($"/ChangeSignalStatus");
+
+            request.AddParameter("botSignalId", botSignalId);
+            request.AddParameter("status", status);
+
 
             var response = RestClient.Get(request);
         }

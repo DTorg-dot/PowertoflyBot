@@ -13,6 +13,8 @@ namespace PowerToFlyBot.Selenium
 
         public bool IsDisableExtensions { get; set; } = false;
 
+        public int Port { get; set; }
+
         public bool IsHeadless { get; set; }
     }
 
@@ -37,22 +39,32 @@ namespace PowerToFlyBot.Selenium
         {
             ChromeWebDriverOptions = new ChromeOptions();
 
+            if (!string.IsNullOrEmpty(seleniumSettings.UserDataDir))
+            {
+                ChromeWebDriverOptions.AddArgument($"user-data-dir={seleniumSettings.UserDataDir}");
+            }
+
             ChromeWebDriverOptions.AddArguments(new List<string>()
             {
                 $"user-data-dir={seleniumSettings.UserDataDir}",
                 $"profile-directory={seleniumSettings.ProfileDirectory}"
             });
 
+            //ChromeWebDriverOptions.AddArgument("auto-open-devtools-for-tabs");
+
             if (seleniumSettings.IsDisableExtensions)
                 ChromeWebDriverOptions.AddArgument("disable-extensions");
 
             if (seleniumSettings.IsHeadless)
-                ChromeWebDriverOptions.AddArgument("headless");
+                ChromeWebDriverOptions.AddArgument("headless"); 
 
             ChromeWebDriverOptions.AddArgument("no-sandbox");
             ChromeWebDriverOptions.AddArgument("disable-dev-shm-usage");
 
             var chromeDriverService = ChromeDriverService.CreateDefaultService(seleniumSettings.UserDataDir);
+
+            if (seleniumSettings.Port != default)
+                chromeDriverService.Port = seleniumSettings.Port;
 
             ChromeDriver = new ChromeDriver(chromeDriverService, ChromeWebDriverOptions);
         }

@@ -13,6 +13,8 @@ namespace PowerToFlyBot
     {
         private static readonly HttpClient client = new HttpClient();
 
+        public static bool IsProduction { get; set; } = false;
+
         private static Dictionary<string, string> coockiesDictionary = new Dictionary<string, string>
         {
             { "im_not_a_new_user", "true" },
@@ -25,18 +27,33 @@ namespace PowerToFlyBot
             //{ "PTF_UID", "26691745" }
         };
 
+        // Configuration 
+        public static string UserDataDir { get; set; }
+
+        public static bool IsHeadless { get; set; }
+
+        public static string AdminPanelApi { get; set; }
+
         static void Main(string[] args)
         {
-            AdminPanelApi adminPanelApi = new AdminPanelApi();
+            Console.WriteLine("Started.");
+
+            if (IsProduction)
+            {
+                UserDataDir = "/usr/bin/";
+                IsHeadless = true;
+                AdminPanelApi = "http://127.0.0.1/api/Powertofly";
+            }
+            else
+            {
+                UserDataDir = "./ChromeDriver/";
+                IsHeadless = false;
+                AdminPanelApi = "http://localhost:54379/api/Powertofly";
+            }
+
+            AdminPanelApi adminPanelApi = new AdminPanelApi(AdminPanelApi);
             PowerToFlyAPI powerToFlyAPI = new PowerToFlyAPI();
             BotSignalDto botSignal = null;
-            SeleniumWebDriver seleniumWebDriver = new SeleniumWebDriver(new SeleniumSettings
-            {
-                IsDisableExtensions = true,
-                IsHeadless = true,
-                ProfileDirectory = "Default",
-                UserDataDir = @"./ChromeDriver/"
-            });
 
             while (true)
             {
@@ -45,69 +62,146 @@ namespace PowerToFlyBot
                     botSignal = adminPanelApi.GetBotSignal();
                     if (botSignal != null)
                     {
+                        Console.WriteLine("Found signal");
+
                         #region LoginUsingSelenium
+                        SeleniumWebDriver seleniumWebDriver = null;
+                        try
+                        {
+                            Console.WriteLine("Start signal");
 
-                        seleniumWebDriver.GoToUrl("https://powertofly.com/accounts/login");
-                        seleniumWebDriver.ChromeDriver.FindElementById("login-email").SendKeys(botSignal.Email);
-                        seleniumWebDriver.ChromeDriver.FindElementById("login-password").SendKeys(botSignal.Password);
-                        seleniumWebDriver.ChromeDriver.FindElementById("login-button").Click();
-                        Thread.Sleep(5000);
 
-                        var cookies = seleniumWebDriver.ChromeDriver.Manage().Cookies.AllCookies.ToDictionary(cookie => cookie.Name, cookie => cookie.Value);
-                        var session = cookies["session"];
+                            seleniumWebDriver = new SeleniumWebDriver(new SeleniumSettings
+                            {
+                                IsDisableExtensions = true,
+                                IsHeadless = IsHeadless,
+                                ProfileDirectory = "Default",
+                                UserDataDir = UserDataDir,
+                                Port = 39969
+                            });
 
-                        var doc = new HtmlDocument();
+                            _ = seleniumWebDriver.ChromeDriver.Manage().Timeouts().ImplicitWait;
+                            seleniumWebDriver.ChromeDriver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(20);
 
-                        doc.LoadHtml(seleniumWebDriver.ChromeDriver.PageSource);
+                            // Clear cashe
 
-                        var attributes = doc.GetElementbyId("csrf_token").Attributes;
+                            seleniumWebDriver.GoToUrl("https://powertofly.com/accounts/login");
+                            Thread.Sleep(5000);
+                            seleniumWebDriver.ChromeDriver.Manage().Cookies.DeleteAllCookies();
+                            seleniumWebDriver.GoToUrl("https://powertofly.com/accounts/login");
+                            seleniumWebDriver.ChromeDriver.FindElementById("login-email").SendKeys(botSignal.Email);
+                            seleniumWebDriver.ChromeDriver.FindElementById("login-password").SendKeys(botSignal.Password);
+                            seleniumWebDriver.ChromeDriver.FindElementById("login-button").Click();
+                            Thread.Sleep(5000);
 
-                        var token = attributes.First(x => x.Name == "value").Value;
+                            var cookies = seleniumWebDriver.ChromeDriver.Manage().Cookies.AllCookies.ToDictionary(cookie => cookie.Name, cookie => cookie.Value);
+                            var session = cookies["session"];
 
-                        powerToFlyAPI.SetSession(session);
-                        powerToFlyAPI.SetToken(token);
+                            var doc = new HtmlDocument();
+
+                            doc.LoadHtml(seleniumWebDriver.ChromeDriver.PageSource);
+
+                            var attributes = doc.GetElementbyId("csrf_token").Attributes;
+
+                            var token = attributes.First(x => x.Name == "value").Value;
+
+                            Console.WriteLine("Token: " + token);
+
+                            powerToFlyAPI.SetSession(session);
+                            powerToFlyAPI.SetToken(token);
+
+                            seleniumWebDriver.ChromeDriver.Close();
+
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("Catch exception from selenium.....");
+                            Console.WriteLine(e.Message);
+                            adminPanelApi.ChangeSignalStatus(botSignal.Id, BotSignalStatus.Waiting);
+                            if (seleniumWebDriver != null)
+                            {
+                                seleniumWebDriver.ChromeDriver.Close();
+                            }
+
+                            continue;
+                        }
+
 
                         #endregion
 
-                        var links = botSignal.JobLinks.Split(";").Select(x => x.Trim());
+                        //var links = botSignal.JobLinks.Split(";").Where(x => !string.IsNullOrEmpty(x)).Select(x => x.Trim());
+
+                        var searchLink = botSignal.JobLinks.Trim();
+                        var pageCount = botSignal.MaxPageCount; // Get from bot signal
 
                         //powerToFlyAPI.Login(botSignal.Email, botSignal.Password);
+                        powerToFlyAPI.IsAuth = true;
 
-                        foreach (var item in links)
+                        // Get 
+
+                        for (int i = 0; i < pageCount; i++)
                         {
+                            ICollection<string> jobsByLink = new List<string>();
                             try
                             {
-                                var job = powerToFlyAPI.GetJobByLink(item);
-                                if (!job.WithRedirect && job.WithUploadCV)
-                                {
-                                    powerToFlyAPI.ApplyForJob(job.ShortLink, botSignal.CoverLetter);
-                                    adminPanelApi.SaveJob(new JobDto { Name = job.Name, CoverLetter = botSignal.CoverLetter, Link = job.FullLink, SignalId = botSignal.Id });
-                                }
-                                Thread.Sleep(1000);
+                                jobsByLink = powerToFlyAPI.GetJobsByLink(searchLink, i).Select(x => x.FullLink).ToList();
                             }
                             catch (Exception e)
                             {
-                                Console.WriteLine(e.Message);
-                                Thread.Sleep(1000);
+                                break;
+                            }
+
+                            foreach (var item in jobsByLink)
+                            {
+                                try
+                                {
+                                    var job = powerToFlyAPI.GetJobByLink(item);
+                                    
+                                    if (job == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    Console.WriteLine("Job find(WithUploadCV): " + job.WithUploadCV + " Redirect: " + job.WithRedirect);
+                                    if (!job.WithRedirect && job.WithUploadCV)
+                                    {
+                                        powerToFlyAPI.ApplyForJob(job.ShortLink, botSignal.CoverLetter);
+                                        adminPanelApi.SaveJob(new JobDto { Name = job.Name, CoverLetter = botSignal.CoverLetter, Link = job.FullLink, SignalId = botSignal.Id });
+                                    }
+                                    Thread.Sleep(1000);
+                                }
+                                catch (Exception e)
+                                {
+                                    Console.WriteLine(e.Message);
+                                    Thread.Sleep(1000);
+                                }
                             }
                         }
 
                         adminPanelApi.ChangeStatus(botSignal.Email, "1");
+                        adminPanelApi.ChangeSignalStatus(botSignal.Id, BotSignalStatus.Finished);
                         botSignal = null;
                     }
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
+                    Console.WriteLine("Global exception");
+                    Console.WriteLine(e.Message);
                     Thread.Sleep(5000);
-                    if (seleniumWebDriver.ChromeDriver != null)
+                    try
                     {
-                        seleniumWebDriver.ChromeDriver.Manage().Cookies.DeleteAllCookies();
+                        if (botSignal != null)
+                        {
+                            adminPanelApi.ChangeSignalStatus(botSignal.Id, BotSignalStatus.Waiting);
+                            adminPanelApi.ChangeStatus(botSignal.Email, "1");
+                            botSignal = null;
+                        }
                     }
-                    if (botSignal != null)
+                    catch (Exception)
                     {
-                        adminPanelApi.ChangeStatus(botSignal.Email, "1");
-                        botSignal = null;
+                       
                     }
+                    
                 }
             }
         }
