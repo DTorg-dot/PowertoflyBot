@@ -62,15 +62,14 @@ namespace PowerToFlyBot
                     botSignal = adminPanelApi.GetBotSignal();
                     if (botSignal != null)
                     {
+                        adminPanelApi.AddLog($"{DateTime.Now}: Found signal... {botSignal.JobLinks} Start...");
                         Console.WriteLine("Found signal");
 
                         #region LoginUsingSelenium
                         SeleniumWebDriver seleniumWebDriver = null;
                         try
                         {
-                            Console.WriteLine("Start signal");
-
-
+                            adminPanelApi.AddLog($"{DateTime.Now}: Start login...");
                             seleniumWebDriver = new SeleniumWebDriver(new SeleniumSettings
                             {
                                 IsDisableExtensions = true,
@@ -112,11 +111,14 @@ namespace PowerToFlyBot
 
                             seleniumWebDriver.ChromeDriver.Close();
 
+                            adminPanelApi.AddLog($"{DateTime.Now}: Login successful.");
                         }
                         catch (Exception e)
                         {
                             Console.WriteLine("Catch exception from selenium.....");
                             Console.WriteLine(e.Message);
+
+                            adminPanelApi.AddLog($"{DateTime.Now}: Error during login. Return signal in WAITING status");
                             adminPanelApi.ChangeSignalStatus(botSignal.Id, BotSignalStatus.Waiting);
                             if (seleniumWebDriver != null)
                             {
@@ -139,18 +141,22 @@ namespace PowerToFlyBot
 
                         // Get 
 
-                        for (int i = 0; i < pageCount; i++)
+                        for (int i = 1; i < pageCount; i++)
                         {
                             ICollection<string> jobsByLink = new List<string>();
                             try
                             {
                                 jobsByLink = powerToFlyAPI.GetJobsByLink(searchLink, i).Select(x => x.FullLink).ToList();
+                                adminPanelApi.AddLog($"{DateTime.Now}: Page number {i}. Found {jobsByLink.Count} jobs");
+                                Thread.Sleep(1000);
                             }
                             catch (Exception e)
                             {
+                                adminPanelApi.AddLog($"{DateTime.Now}: Error when parse jobs: Page number {i} not found.");
                                 break;
                             }
 
+                            string logTmp = "";
                             foreach (var item in jobsByLink)
                             {
                                 try
@@ -159,34 +165,45 @@ namespace PowerToFlyBot
                                     
                                     if (job == null)
                                     {
+                                        logTmp += $"{DateTime.Now}: Job: {item} response already registered. Skip..." + "\n";
                                         continue;
                                     }
 
                                     Console.WriteLine("Job find(WithUploadCV): " + job.WithUploadCV + " Redirect: " + job.WithRedirect);
+                                    logTmp += $"{DateTime.Now}: Job: {item} Can left response: {job.WithUploadCV}. With redirect: {job.WithRedirect}" + "\n";
+                                    Thread.Sleep(1000);
                                     if (!job.WithRedirect && job.WithUploadCV)
                                     {
                                         powerToFlyAPI.ApplyForJob(job.ShortLink, botSignal.CoverLetter);
                                         adminPanelApi.SaveJob(new JobDto { Name = job.Name, CoverLetter = botSignal.CoverLetter, Link = job.FullLink, SignalId = botSignal.Id });
+                                        logTmp += $"{DateTime.Now}: Job: {item} Response left. Saved to DB" + "\n";
                                     }
                                     Thread.Sleep(1000);
                                 }
                                 catch (Exception e)
                                 {
+                                    logTmp += $"{DateTime.Now}: Job: {item} Error during parsing" + "\n";
+
                                     Console.WriteLine(e.Message);
                                     Thread.Sleep(1000);
                                 }
                             }
+
+                            adminPanelApi.AddLog(logTmp);
                         }
 
                         adminPanelApi.ChangeStatus(botSignal.Email, "1");
                         adminPanelApi.ChangeSignalStatus(botSignal.Id, BotSignalStatus.Finished);
                         botSignal = null;
+
+                        adminPanelApi.AddLog($"{DateTime.Now}: Bot signal finished. Account returned to Available status");
                     }
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine("Global exception");
                     Console.WriteLine(e.Message);
+                    adminPanelApi.AddLog($"{DateTime.Now}: Bot signal not found");
                     Thread.Sleep(5000);
                     try
                     {

@@ -89,5 +89,20 @@ namespace PowerToFlyBot
 
             var response = RestClient.Post(request);
         }
+
+        public void AddLog(string message)
+        {
+            var request = new RestRequest($"/AddLog");
+            LogMessage logMessage = new LogMessage { Message = message };
+            request.RequestFormat = DataFormat.Json;
+            request.AddJsonBody(logMessage);
+
+            var response = RestClient.Post(request);
+        }
+
+        class LogMessage
+        {
+            public string Message { get; set; }
+        }
     }
 }
