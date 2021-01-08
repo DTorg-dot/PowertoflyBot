@@ -148,6 +148,7 @@ namespace PowerToFlyBot
                             {
                                 jobsByLink = powerToFlyAPI.GetJobsByLink(searchLink, i).Select(x => x.FullLink).ToList();
                                 adminPanelApi.AddLog($"{DateTime.Now}: Page number {i}. Found {jobsByLink.Count} jobs");
+                                adminPanelApi.UpdateAllJobCountForBotSignal(botSignal.Id, jobsByLink.Count);
                                 Thread.Sleep(1000);
                             }
                             catch (Exception e)

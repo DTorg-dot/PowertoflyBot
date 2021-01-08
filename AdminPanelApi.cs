@@ -90,6 +90,13 @@ namespace PowerToFlyBot
             var response = RestClient.Post(request);
         }
 
+        public void UpdateAllJobCountForBotSignal(int botSignalId, int addToAllJobCount)
+        {
+            var request = new RestRequest($"/UpdateBotSignalAllJobCount?botSignalId={botSignalId}&addToAllJobCount={addToAllJobCount}");
+
+            var response = RestClient.Post(request);
+        }
+
         public void AddLog(string message)
         {
             var request = new RestRequest($"/AddLog");
